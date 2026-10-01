@@ -30,14 +30,9 @@
       </div>
 
       <div class="role-selector-card">
-        <label for="userRoleSelect">Foydalanuvchi roli:</label>
-        <select id="userRoleSelect" class="form-select">
-          <option value="analyst" selected>Tahlilchi (Analyst)</option>
-          <option value="viewer">Kuzatuvchi (Viewer)</option>
-          <option value="hr_admin">HR Administrator</option>
-          <option value="superadmin">Super Admin</option>
-        </select>
-        <small class="role-hint">Rol ma'lumotlar xavfsizligi siyosatini belgilaydi.</small>
+        <label>Foydalanuvchi roli:</label>
+        <div style="font-weight: 600; color: #3b82f6; padding: 0.25rem 0; font-size: 0.9rem;">👁️ Viewer (Faqat o'qish rejimi)</div>
+        <small class="role-hint">Barcha ma'lumotlarni to'liq ko'rish va tahlil qilish huquqi.</small>
       </div>
 
       <div class="schema-browser">
@@ -129,6 +124,7 @@
     </main>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="/static/js/app.js"></script>
 </body>
 </html>

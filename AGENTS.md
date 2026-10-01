@@ -13,6 +13,35 @@ The implementation MUST use the following stack unless the project owner explici
 - **LLM providers:** Ollama and OpenRouter, behind a common Python provider abstraction
 - **Configuration/secrets:** `.env` for secrets and environment-specific values; application configuration for provider/model selection
 
+## 0.1 Core Functional & Security Requirements
+
+1. **Conversation Memory (Last 10 Messages Window):**
+   - The LLM context MUST retain the last 10 messages (user inquiries and assistant responses) per session.
+   - Context must be formatted cleanly without XML tags to inform multi-turn reasoning (e.g., resolving pronouns to previously mentioned entities).
+
+2. **Polished Markdown Output:**
+   - LLM responses MUST be formatted in beautiful, readable Markdown.
+   - Data summaries, comparative records, or lists of entities MUST be rendered as clean Markdown tables (`| Col | Col |`) or structured bulleted lists.
+
+3. **Unrestricted Business Read Access with Strict Zero-Write Policy:**
+   - The user possesses full permission to query and view ANY database business entity, including individual salaries, personal phone numbers, emails, and educational records.
+   - The database is STRICTLY read-only: Users CANNOT insert, update, delete, truncate, drop, alter, or create any database records or schemas.
+
+4. **Per-Stage Pipeline Timing Visibility:**
+   - In the "Jarayon tafsilotlari" (Pipeline Inspector), each individual stage MUST display its elapsed duration in seconds (formatted as `X.XX s`, e.g., `1.20 s`, `0.25 s`).
+
+5. **Single Role Architecture ("viewer"):**
+   - The system utilizes a single role: `viewer`.
+   - The `viewer` role is granted full read-only query capabilities across all application domains.
+
+6. **Prompt Injection & Tag Injection Defenses:**
+   - Pseudo-XML tags like `<USER>`, `<USER_QUESTION>`, `<SCHEMA>`, `<SYSTEM>` MUST NOT be used to wrap untrusted inputs.
+   - Inputs MUST be defended against prompt injection, jailbreaks (`DAN mode`, instruction overrides), tag injection, and stacked SQL injection attacks.
+
+7. **PostgreSQL Read-Only User & Transaction Security:**
+   - The application connects to PostgreSQL using a read-only database user (`inno_readonly`).
+   - Every query MUST be executed inside an explicit `readonly=True` transaction with `statement_timeout`.
+
 ### Python 3.12.x Compatibility
 
 All backend code MUST be compatible with **Python 3.12.x** (such as `3.12.7` or `3.12.10`).

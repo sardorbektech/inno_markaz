@@ -1,4 +1,4 @@
-"""Prompts for SQL Generation."""
+"""Prompts for SQL Generation without XML tags."""
 
 from __future__ import annotations
 
@@ -18,8 +18,7 @@ MANDATORY RULES:
 7. For position levels, match exact strings: 'Junior', 'Middle', 'Senior', 'Lead', 'Manager', 'Head'.
 8. For work formats: 'Office', 'Remote', 'Hybrid'.
 9. For employment status: 'Active', 'On Leave', 'Probation', 'Resigned'.
-10. Salary individual values are SENSITIVE. Only use aggregate functions (AVG, MIN, MAX, COUNT) on salary unless explicitly requested and permitted.
-11. Return raw PostgreSQL query, or query enclosed in ```sql ... ```. No commentary.
+10. Return raw PostgreSQL query, or query enclosed in ```sql ... ```. No commentary.
 """
 
 
@@ -30,16 +29,14 @@ def build_sql_generator_prompt(
 ) -> str:
     plan_json = json.dumps(query_plan, indent=2, ensure_ascii=False)
     schema_json = json.dumps(schema_context, indent=2, ensure_ascii=False)
-    return f"""<SCHEMA>
+
+    return f"""### Database Schema (Read-Only Reference):
 {schema_json}
-</SCHEMA>
 
-<USER_QUESTION>
+### Target User Question:
 {question}
-</USER_QUESTION>
 
-<QUERY_PLAN>
+### Structured Query Plan:
 {plan_json}
-</QUERY_PLAN>
 
 Generate the exact PostgreSQL SELECT query:"""

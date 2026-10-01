@@ -1,69 +1,57 @@
-"""Data Sensitivity Policy according to AGENTS.md Sections 11 and 50."""
+"""Data Sensitivity Policy.
+
+Permits full read access to all domain fields (including individual salaries,
+personal contacts, and education) while strictly rejecting attempts to access
+system-level sensitive catalogs (e.g. pg_authid, pg_shadow) or perform modifications.
+"""
 
 from __future__ import annotations
 
 from typing import Any
-from app.db.schema import is_sensitive_column
 from app.logging_config import log_stage
-from app.mcp.authorization import authorization_manager
 
 
 class SensitiveDataAccessDeniedError(Exception):
-    """Raised when access to sensitive/personal data is forbidden by policy."""
+    """Raised when access to system-level sensitive resources is attempted."""
     def __init__(self, message: str, code: str = "SENSITIVE_DATA_ACCESS_DENIED") -> None:
         super().__init__(message)
         self.code = code
 
 
 class SensitivityPolicyValidator:
-    """Enforces policy on sensitive fields like salary and personal contacts."""
+    """Validates that queries only access permitted business domains in read-only mode."""
+
+    FORBIDDEN_CATALOGS: set[str] = {
+        "pg_shadow",
+        "pg_authid",
+        "pg_user",
+        "pg_roles",
+        "information_schema",
+    }
 
     def check_sensitivity(
         self,
         tables_used: set[str],
         columns_selected: set[str],
         is_aggregate: bool,
-        user_role: str = "analyst",
+        user_role: str = "viewer",
         request_id: str | None = None,
     ) -> None:
-        """Evaluates columns and tables against sensitivity restrictions."""
+        """Evaluates tables against system catalog access.
+        All business tables and personal fields are readable by the viewer.
+        """
         log_stage("SENSITIVITY_POLICY", f"Checking sensitivity for tables: {tables_used} | columns: {columns_selected}", request_id=request_id)
 
-        # 1. Salary Policy (Section 11.1)
-        has_salary = any("salary" in col.lower() for col in columns_selected)
-        if has_salary:
-            if not is_aggregate:
-                if not authorization_manager.can_access_individual_salary(user_role):
-                    log_stage("SENSITIVITY_POLICY", "Individual salary access DENIED by policy", request_id=request_id)
-                    raise SensitiveDataAccessDeniedError(
-                        "Xodimlarning individual maosh ma'lumotlarini ko'rish taqiqlangan. Faqat bo'lim yoki umumiy o'rtacha/statistik ma'lumotlar ruxsat etiladi.",
-                        code="SENSITIVE_DATA_ACCESS_DENIED",
-                    )
-            log_stage("SENSITIVITY_POLICY", "Salary aggregate access ALLOWED", request_id=request_id)
-
-        # 2. Personal Contacts Policy (Section 11.2 & 50)
-        has_contact_val = any("contact_value" in col.lower() for col in columns_selected) or (
-            "employee_contacts" in tables_used and not is_aggregate
-        )
-        if has_contact_val:
-            if not authorization_manager.can_access_personal_contacts(user_role):
-                log_stage("SENSITIVITY_POLICY", "Personal contact values access DENIED by policy", request_id=request_id)
+        # Check for system catalog access attempts
+        for tbl in tables_used:
+            if tbl.lower() in self.FORBIDDEN_CATALOGS:
+                log_stage("SENSITIVITY_POLICY", f"Access to system catalog '{tbl}' DENIED", request_id=request_id)
                 raise SensitiveDataAccessDeniedError(
-                    "Xodimlarning shaxsiy aloqa ma'lumotlari (telefon, telegram) xavfsizlik siyosati bo'yicha yopiq hisoblanadi.",
+                    f"Tizim kataloglariga ('{tbl}') murojaat qilish qat'iyan taqiqlangan.",
                     code="SENSITIVE_DATA_ACCESS_DENIED",
                 )
 
-        # 3. Direct personal contact columns in employees table (phone, email)
-        has_phone_or_email = any(col.lower() in ("phone", "email", "employees.phone", "employees.email") for col in columns_selected)
-        if has_phone_or_email and not is_aggregate:
-            if not authorization_manager.can_access_personal_contacts(user_role):
-                log_stage("SENSITIVITY_POLICY", "Personal phone/email access DENIED by policy", request_id=request_id)
-                raise SensitiveDataAccessDeniedError(
-                    "Xodimlarning telefon raqami va elektron pochtasi shaxsiy ma'lumotlar hisoblanadi va oddiy tahlilda taqdim etilmaydi.",
-                    code="SENSITIVE_DATA_ACCESS_DENIED",
-                )
-
-        log_stage("SENSITIVITY_POLICY", "Sensitivity policy check PASSED", request_id=request_id)
+        log_stage("SENSITIVITY_POLICY", "Sensitivity policy check PASSED (Full business read permitted)", request_id=request_id)
 
 
 sensitivity_policy = SensitivityPolicyValidator()

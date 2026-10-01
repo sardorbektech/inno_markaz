@@ -1,4 +1,8 @@
-"""Result Sanitizer according to AGENTS.md Sections 31 and 32."""
+"""Result Sanitizer.
+
+Normalizes datatypes (dates, decimals) and strips any dangerous characters,
+while allowing full visibility of business fields including salaries and personal contacts.
+"""
 
 from __future__ import annotations
 
@@ -7,57 +11,39 @@ import datetime
 from typing import Any
 from app.config.security_config import security_config
 from app.logging_config import log_stage
-from app.mcp.authorization import authorization_manager
 
 
 class ResultSanitizer:
     """Sanitizes raw PostgreSQL query results before exposing to the LLM or user."""
 
-    # Disallowed columns for non-privileged users
-    DISALLOWED_COLUMNS: set[str] = {
+    # Truly confidential system credentials (not present in normal business data)
+    SYSTEM_SECRET_COLUMNS: set[str] = {
         "password",
         "hash",
         "secret",
         "token",
         "api_key",
-        "contact_value",
     }
 
     def sanitize(
         self,
         raw_results: list[dict[str, Any]],
-        user_role: str = "analyst",
+        user_role: str = "viewer",
         request_id: str | None = None,
     ) -> list[dict[str, Any]]:
-        """Cleanses, normalizes, and filters raw records.
-
-        Returns:
-            Sanitized list of row dictionaries.
+        """Cleanses, normalizes, and prepares raw records for output.
+        All business fields (including salaries, contacts, education) are preserved.
         """
         log_stage("RESULT_SANITIZER", f"Sanitizing {len(raw_results)} raw database records...", request_id=request_id)
         sanitized: list[dict[str, Any]] = []
-
-        can_view_salary = authorization_manager.can_access_individual_salary(user_role)
-        can_view_contacts = authorization_manager.can_access_personal_contacts(user_role)
 
         for row in raw_results[: security_config.max_rows]:
             clean_row: dict[str, Any] = {}
             for key, val in row.items():
                 col_name = key.lower()
 
-                # Block forbidden column names
-                if col_name in self.DISALLOWED_COLUMNS and not can_view_contacts:
-                    continue
-
-                # Protect direct salary if not aggregate
-                if col_name == "salary" and not can_view_salary:
-                    # Individual salary is masked unless it's an aggregate (like avg_salary)
-                    clean_row[key] = "[PROTECTED]"
-                    continue
-
-                # Protect personal phone and email for normal analytics
-                if col_name in ("phone", "email") and not can_view_contacts:
-                    clean_row[key] = "[PROTECTED]"
+                # Block system credentials if any exist
+                if col_name in self.SYSTEM_SECRET_COLUMNS:
                     continue
 
                 # Normalize datatypes
@@ -66,14 +52,9 @@ class ResultSanitizer:
                 elif isinstance(val, decimal.Decimal):
                     clean_row[key] = float(val)
                 elif isinstance(val, str):
-                    # Truncate overly long strings
                     clean_val = val[:500] if len(val) > 500 else val
-                    # Neutralize potential prompt injection delimiters
-                    clean_val = (
-                        clean_val.replace("</DATABASE_RESULT>", "")
-                        .replace("<USER_QUESTION>", "")
-                        .replace("</USER_QUESTION>", "")
-                    )
+                    # Neutralize potential prompt injection injection markers
+                    clean_val = clean_val.replace("###", "-")
                     clean_row[key] = clean_val
                 else:
                     clean_row[key] = val

@@ -22,7 +22,7 @@ from app.mcp.executor import mcp_executor
 )
 async def test_section_54_queries(question):
     """Executes the minimum test questions required by AGENTS.md Section 54."""
-    result = await mcp_executor.process_question(raw_question=question, user_role="analyst")
+    result = await mcp_executor.process_question(raw_question=question, user_role="viewer")
 
     assert result.question == question
     assert result.sql.strip().upper().startswith("SELECT")
@@ -30,3 +30,4 @@ async def test_section_54_queries(question):
     assert len(result.answer) > 0
     assert result.execution_time_ms > 0
     assert len(result.stages) > 0
+    assert all("duration" in s for s in result.stages)

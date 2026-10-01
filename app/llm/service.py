@@ -64,11 +64,12 @@ class LLMService:
         self,
         question: str,
         schema_context: dict[str, Any],
+        history: list[dict[str, str]] | None = None,
         request_id: str | None = None,
     ) -> dict[str, Any]:
         """Calls LLM to generate a structured query plan."""
         log_stage("LLM", f"Calling LLM for Query Planning on: {question}", request_id=request_id)
-        prompt = build_query_planner_prompt(question, schema_context)
+        prompt = build_query_planner_prompt(question, schema_context, history=history)
 
         req = LLMRequest(
             messages=[
@@ -131,11 +132,12 @@ class LLMService:
         query_plan: dict[str, Any],
         sanitized_results: list[dict[str, Any]],
         row_count: int,
+        history: list[dict[str, str]] | None = None,
         request_id: str | None = None,
     ) -> str:
         """Calls LLM to formulate natural language final answer based strictly on sanitized results."""
         log_stage("LLM_ANSWER", "Synthesizing grounded answer from sanitized results...", request_id=request_id)
-        prompt = build_answer_prompt(question, query_plan, sanitized_results, row_count)
+        prompt = build_answer_prompt(question, query_plan, sanitized_results, row_count, history=history)
 
         req = LLMRequest(
             messages=[
@@ -153,30 +155,60 @@ class LLMService:
         except Exception as e:
             logger.warning(f"LLM answer generation failed: {e}")
 
-        # Deterministic grounded fallback if LLM produces empty response
+        # Deterministic grounded fallback in beautiful Markdown if LLM produces empty response
         if not answer:
             if row_count == 0 or len(sanitized_results) == 0:
-                answer = "Ma'lumotlar bazasida so'rov bo'yicha hech qanday ma'lumot topilmadi."
+                answer = "Ma'lumotlar bazasida ushbu so'rov bo'yicha hech qanday ma'lumot topilmadi."
             elif row_count == 1 and "employee_count" in sanitized_results[0]:
                 count_val = sanitized_results[0]["employee_count"]
-                answer = f"So'rov natijasiga ko'ra, xodimlar soni jami {count_val} nafar."
+                answer = f"So'rov natijasiga ko'ra, xodimlar soni jami **{count_val} nafar**."
             elif row_count == 1 and "total" in sanitized_results[0]:
                 count_val = sanitized_results[0]["total"]
-                answer = f"So'rov bo'yicha jami: {count_val} nafar."
+                answer = f"So'rov bo'yicha jami: **{count_val} nafar**."
             elif any("department" in r and "employee_count" in r for r in sanitized_results):
-                lines = [f"- {r.get('department')}: {r.get('employee_count')} nafar" for r in sanitized_results[:10]]
-                answer = "Bo'limlar bo'yicha xodimlar soni:\n" + "\n".join(lines)
+                table_rows = [f"| {r.get('department')} | **{r.get('employee_count')}** |" for r in sanitized_results[:15]]
+                answer = (
+                    "### Bo'limlar bo'yicha xodimlar soni\n\n"
+                    "| Bo'lim | Xodimlar soni |\n"
+                    "|:---|:---|\n" + "\n".join(table_rows)
+                )
             elif any("average_salary" in r for r in sanitized_results):
-                lines = [f"- {r.get('department')}: {float(r.get('average_salary', 0)):,.2f} so'm" for r in sanitized_results[:10]]
-                answer = "Bo'limlar bo'yicha o'rtacha maosh:\n" + "\n".join(lines)
+                table_rows = [
+                    f"| {r.get('department')} | {float(r.get('average_salary', 0)):,.2f} so'm | {float(r.get('min_salary', 0)):,.2f} so'm | {float(r.get('max_salary', 0)):,.2f} so'm |"
+                    for r in sanitized_results[:15]
+                ]
+                answer = (
+                    "### Bo'limlar bo'yicha o'rtacha maosh ko'rsatkichlari\n\n"
+                    "| Bo'lim | O'rtacha maosh | Min maosh | Max maosh |\n"
+                    "|:---|:---|:---|:---|\n" + "\n".join(table_rows)
+                )
             elif any("specialty" in r and "employee_count" in r for r in sanitized_results):
                 top_s = sanitized_results[0]
-                answer = f"Eng ko'p xodimga ega mutaxassislik: {top_s.get('specialty')} ({top_s.get('employee_count')} nafar xodim)."
+                table_rows = [f"| {r.get('specialty')} | **{r.get('employee_count')}** |" for r in sanitized_results[:15]]
+                answer = (
+                    f"Eng ko'p xodimga ega mutaxassislik: **{top_s.get('specialty')}** ({top_s.get('employee_count')} nafar).\n\n"
+                    "| Mutaxassislik | Xodimlar soni |\n"
+                    "|:---|:---|\n" + "\n".join(table_rows)
+                )
             elif any("direct_report_count" in r for r in sanitized_results):
-                lines = [f"- {r.get('first_name')} {r.get('last_name')}: {r.get('direct_report_count')} nafar xodim" for r in sanitized_results[:10]]
-                answer = "Rahbarlar va ularga biriktirilgan xodimlar soni:\n" + "\n".join(lines)
+                table_rows = [f"| {r.get('first_name')} {r.get('last_name')} | **{r.get('direct_report_count')}** |" for r in sanitized_results[:15]]
+                answer = (
+                    "### Rahbarlar va ularga biriktirilgan xodimlar\n\n"
+                    "| Rahbar | Biriktirilgan xodimlar |\n"
+                    "|:---|:---|\n" + "\n".join(table_rows)
+                )
+            elif any("first_name" in r and "last_name" in r for r in sanitized_results):
+                table_rows = [
+                    f"| {r.get('first_name')} {r.get('last_name')} | {r.get('position', '-')} | {r.get('department', '-')} | {r.get('experience_years', '-')} |"
+                    for r in sanitized_results[:15]
+                ]
+                answer = (
+                    "### Xodimlar ro'yxati\n\n"
+                    "| Ism, Familiya | Lavozim | Bo'lim | Tajriba (yil) |\n"
+                    "|:---|:---|:---|:---|\n" + "\n".join(table_rows)
+                )
             else:
-                answer = f"So'rov muvaffaqiyatli bajarildi. Jami {row_count} ta yozuv topildi."
+                answer = f"So'rov muvaffaqiyatli bajarildi. Jami **{row_count} ta** yozuv topildi."
 
         log_stage("LLM_ANSWER", f"Answer generated ({len(answer)} chars)", request_id=request_id)
         return answer

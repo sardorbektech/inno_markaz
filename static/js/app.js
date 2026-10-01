@@ -1,6 +1,7 @@
 /**
  * Inno Markaz - Frontend Application
  * Interacts with FastAPI backend through REST endpoints.
+ * Supports multi-turn session memory, beautiful Markdown rendering, and stage timing.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -9,7 +10,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const messagesList = document.getElementById('messagesList');
   const chatContainer = document.getElementById('chatContainer');
   const chipsContainer = document.getElementById('chipsContainer');
-  const userRoleSelect = document.getElementById('userRoleSelect');
   const systemStatus = document.getElementById('systemStatus');
   const modelInfo = document.getElementById('modelInfo');
   const statusIndicator = document.getElementById('statusIndicator');
@@ -22,6 +22,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const columnsList = document.getElementById('columnsList');
 
   let schemaData = {};
+
+  // Session Memory: Generate or retrieve persistent session ID
+  let currentSessionId = localStorage.getItem('inno_session_id');
+  if (!currentSessionId) {
+    currentSessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+    localStorage.setItem('inno_session_id', currentSessionId);
+  }
 
   // 1. Fetch System Health & Configuration
   async function loadSystemInfo() {
@@ -103,17 +110,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadingElem = appendLoadingMessage();
     chatContainer.scrollTop = chatContainer.scrollHeight;
 
-    const role = userRoleSelect.value || 'analyst';
-
     try {
       const resp = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, user_role: role }),
+        body: JSON.stringify({
+          message: text,
+          user_role: 'viewer',
+          session_id: currentSessionId,
+        }),
       });
 
       const data = await resp.json();
       loadingElem.remove();
+
+      if (data.session_id) {
+        currentSessionId = data.session_id;
+        localStorage.setItem('inno_session_id', currentSessionId);
+      }
 
       appendAssistantMessage(data);
     } catch (err) {
@@ -122,7 +136,7 @@ document.addEventListener('DOMContentLoaded', () => {
         success: false,
         answer: 'Server bilan bog\'lanishda xatolik yuz berdi.',
         error: err.message,
-        stages: [{ stage: 'ERROR', status: 'failed', detail: err.message }],
+        stages: [{ stage: 'ERROR', status: 'failed', detail: err.message, duration: '0.00 s' }],
       });
     }
 
@@ -149,7 +163,7 @@ document.addEventListener('DOMContentLoaded', () => {
             <span class="dot"></span>
             <span class="dot"></span>
             <span style="font-size: 0.8rem; color: var(--text-muted); margin-left: 0.5rem;">
-              So'rov tahlil qilinmoqda (MCP tekshiruvi va SQL bajarilmoqda)...
+              So'rov tahlil qilinmoqda (MCP xavfsizlik tekshiruvi va SQL bajarilmoqda)...
             </span>
           </div>
         </div>
@@ -159,22 +173,22 @@ document.addEventListener('DOMContentLoaded', () => {
     return wrapper;
   }
 
-  // 7. Append Assistant Response with Pipeline Visibility
+  // 7. Append Assistant Response with Pipeline Visibility & Timing
   function appendAssistantMessage(res) {
     const wrapper = document.createElement('div');
     wrapper.className = 'message-wrapper assistant';
 
-    const isSuccess = res.success !== false;
     const stages = res.stages || [];
     const sql = res.sql || '';
     const results = res.results || [];
-    const executionTime = res.execution_time_ms ? `${res.execution_time_ms.toFixed(1)} ms` : '';
+    const executionTime = res.execution_time_ms ? `${(res.execution_time_ms / 1000).toFixed(2)} s` : '';
 
     let stagesBadgesHtml = stages.map(s => {
-      const isPassed = s.status === 'approved' || s.status === 'passed' || s.status === 'synthesized' || s.status === 'executed' || s.status === 'sanitized';
+      const isPassed = s.status === 'approved' || s.status === 'passed' || s.status === 'synthesized' || s.status === 'executed' || s.status === 'sanitized' || s.status === 'ready' || s.status === 'completed' || s.status === 'allowed';
       const isRejected = s.status === 'rejected' || s.status === 'denied' || s.status === 'failed';
       const badgeCls = isPassed ? 'passed' : isRejected ? 'rejected' : '';
-      return `<span class="stage-badge ${badgeCls}">[${s.stage}] ${s.status}</span>`;
+      const durText = s.duration ? `<span class="stage-time" style="margin-left: 0.35rem; color: #93c5fd; font-weight: 600;">(${s.duration})</span>` : '';
+      return `<span class="stage-badge ${badgeCls}">[${s.stage}] ${s.status}${durText}</span>`;
     }).join('');
 
     let resultsTableHtml = '';
@@ -198,14 +212,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const html = `
       <div class="assistant-card">
-        <div class="assistant-body">
-          ${formatAnswerMarkdown(res.answer)}
+        <div class="assistant-body markdown-body">
+          ${renderMarkdown(res.answer)}
         </div>
 
         <div class="inspector-accordion">
           <div class="inspector-header">
             <span>🛡️ Jarayon tafsilotlari (MCP & SQL Visibility)</span>
-            <span>${executionTime} ▾</span>
+            <span>${executionTime ? `Jami: ${executionTime} ` : ''}▾</span>
           </div>
           <div class="inspector-content">
             <div class="stages-flow">
@@ -218,7 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ` : ''}
 
             ${resultsTableHtml ? `
-              <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Filtrlangan natijalar (${results.length} ta satr):</div>
+              <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.25rem;">Qaytarilgan ma'lumotlar (${results.length} ta satr):</div>
               ${resultsTableHtml}
             ` : ''}
           </div>
@@ -233,9 +247,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const content = wrapper.querySelector('.inspector-content');
     header.addEventListener('click', () => {
       content.classList.toggle('open');
-      header.querySelector('span:last-child').textContent = content.classList.contains('open')
-        ? `${executionTime} ▴`
-        : `${executionTime} ▾`;
+      const arrow = content.classList.contains('open') ? '▴' : '▾';
+      header.querySelector('span:last-child').textContent = `${executionTime ? `Jami: ${executionTime} ` : ''}${arrow}`;
     });
 
     messagesList.appendChild(wrapper);
@@ -255,6 +268,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   clearChatBtn.addEventListener('click', () => {
     messagesList.innerHTML = '';
+    // Reset session memory ID on chat clear
+    currentSessionId = 'sess_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+    localStorage.setItem('inno_session_id', currentSessionId);
   });
 
   openSidebarBtn.addEventListener('click', () => {
@@ -276,15 +292,55 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/'/g, '&#039;');
   }
 
-  function formatAnswerMarkdown(text) {
+  // Beautiful Markdown rendering (using marked if available, fallback with table support)
+  function renderMarkdown(text) {
     if (!text) return '';
-    // Basic Markdown format: line breaks, bold, bullet points
-    let formatted = escapeHtml(text)
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\n\n/g, '</p><p>')
-      .replace(/\n- /g, '<br>• ')
-      .replace(/\n/g, '<br>');
-    return `<p>${formatted}</p>`;
+    if (typeof marked !== 'undefined' && marked.parse) {
+      try {
+        return marked.parse(text);
+      } catch (e) {
+        console.warn('Marked parse error, using fallback:', e);
+      }
+    }
+
+    // High-fidelity fallback Markdown renderer supporting tables, headings, and bold
+    let html = escapeHtml(text);
+
+    // Markdown tables: | col | col |
+    const tableRegex = /((?:\|[^\n]+\|\r?\n)+)/g;
+    html = html.replace(tableRegex, (match) => {
+      const rows = match.trim().split(/\r?\n/).map(r => r.trim()).filter(Boolean);
+      if (rows.length < 2) return match;
+
+      let tableHtml = '<div class="data-table-container"><table class="data-table">';
+      rows.forEach((row, idx) => {
+        if (row.includes('---')) return; // separator row
+        const cells = row.split('|').map(c => c.trim()).filter((_, i, arr) => i > 0 && i < arr.length - 1);
+        if (idx === 0) {
+          tableHtml += '<thead><tr>' + cells.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+        } else {
+          tableHtml += '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
+        }
+      });
+      tableHtml += '</tbody></table></div>';
+      return tableHtml;
+    });
+
+    // Headings
+    html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+    html = html.replace(/^## (.*$)/gim, '<h2>$1</h2>');
+
+    // Bold text
+    html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+
+    // Bullet points
+    html = html.replace(/^\- (.*$)/gim, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>)/gim, '<ul>$1</ul>');
+
+    // Paragraphs
+    html = html.replace(/\n\n/g, '<br><br>');
+
+    return html;
   }
 
   // Initial load

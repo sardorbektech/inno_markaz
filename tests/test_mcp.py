@@ -79,10 +79,10 @@ def test_result_sanitizer():
             "phone": "+998901234567",
         }
     ]
-    # For analyst, salary and phone should be masked
-    sanitized = result_sanitizer.sanitize(raw_rows, user_role="analyst")
-    assert sanitized[0]["salary"] == "[PROTECTED]"
-    assert sanitized[0]["phone"] == "[PROTECTED]"
+    # For viewer, all business fields (salary and phone) are readable
+    sanitized = result_sanitizer.sanitize(raw_rows, user_role="viewer")
+    assert sanitized[0]["salary"] == 50000000.0
+    assert sanitized[0]["phone"] == "+998901234567"
     assert sanitized[0]["first_name"] == "Ali"
 
 

@@ -33,12 +33,13 @@ router = APIRouter(prefix="/api", tags=["Agent"])
 async def chat_endpoint(request: ChatRequest) -> ChatResponse:
     """Processes natural language inquiry through the full MCP validation and PostgreSQL pipeline."""
     req_id = str(uuid.uuid4())
-    log_stage("API", f"POST /api/chat received: '{request.message}' | Role: {request.user_role}", request_id=req_id)
+    log_stage("API", f"POST /api/chat received: '{request.message}' | Session: {request.session_id}", request_id=req_id)
 
     try:
         result = await mcp_executor.process_question(
             raw_question=request.message,
-            user_role=request.user_role,
+            user_role="viewer",
+            session_id=request.session_id,
             request_id=req_id,
         )
 
@@ -51,6 +52,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
             row_count=result.row_count,
             execution_time_ms=result.execution_time_ms,
             request_id=result.request_id,
+            session_id=result.session_id,
             stages=[PipelineStage(**s) for s in result.stages],
         )
 
@@ -62,6 +64,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
             error=str(e),
             error_code=e.code,
             request_id=req_id,
+            session_id=request.session_id,
             stages=[PipelineStage(stage="INPUT_VALIDATION", status="rejected", detail=str(e))],
         )
 
@@ -73,6 +76,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
             error=str(e),
             error_code=e.code,
             request_id=req_id,
+            session_id=request.session_id,
             stages=[PipelineStage(stage="AUTHORIZATION", status="denied", detail=str(e))],
         )
 
@@ -84,6 +88,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
             error=str(e),
             error_code=e.code,
             request_id=req_id,
+            session_id=request.session_id,
             stages=[PipelineStage(stage="SENSITIVITY_POLICY", status="denied", detail=str(e))],
         )
 
@@ -95,6 +100,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
             error=str(e),
             error_code=e.code,
             request_id=req_id,
+            session_id=request.session_id,
             stages=[PipelineStage(stage="COMPLEXITY_CHECK", status="rejected", detail=str(e))],
         )
 
@@ -106,6 +112,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
             error=str(e),
             error_code=e.code,
             request_id=req_id,
+            session_id=request.session_id,
             stages=[PipelineStage(stage="SQL_AST_VALIDATION", status="rejected", detail=str(e))],
         )
 
@@ -117,6 +124,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
             error=str(e),
             error_code=e.code,
             request_id=req_id,
+            session_id=request.session_id,
             stages=[PipelineStage(stage="PARAMETERIZATION", status="failed", detail=str(e))],
         )
 
@@ -128,6 +136,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
             error="Database query timeout",
             error_code="DATABASE_TIMEOUT",
             request_id=req_id,
+            session_id=request.session_id,
             stages=[PipelineStage(stage="POSTGRESQL", status="timeout", detail=str(e))],
         )
 
@@ -140,6 +149,7 @@ async def chat_endpoint(request: ChatRequest) -> ChatResponse:
             error="Ichki server xatoligi",
             error_code="INTERNAL_ERROR",
             request_id=req_id,
+            session_id=request.session_id,
             stages=[PipelineStage(stage="ERROR", status="failed", detail=type(e).__name__)],
         )
 
