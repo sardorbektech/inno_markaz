@@ -94,7 +94,10 @@ class SchemaResolver:
 
         # 0. Intent refinement based on domain keywords & entities
         # Check for person inquiry words
-        is_person_inquiry = bool(re.search(r"\b(kim|haqida|ma'lumot|ma'lumotlarini|malumot|malumotlarini|profili|oyligi|maoshi)\b", q_lower))
+        is_person_inquiry = (
+            bool(re.search(r"\b(kim|haqida|ma'lumotlarini|malumotlarini|profili|xodimning)\b", q_lower))
+            or bool(re.search(r"\b\w+ning\s+(?:ma'lumot|ma'lumotlari|maoshi|oyligi)\b", q_lower))
+        )
 
         # Extract non-stopword tokens as potential person names
         stopwords = {
@@ -105,7 +108,15 @@ class SchemaResolver:
             "daraja", "darajasi", "katta", "kichik", "orta", "o'rta", "bosh", "ofis",
             "faol", "tatilda", "resigned", "remote", "hybrid", "office", "junior", "middle", "senior",
             "lead", "manager", "head", "full", "time", "part", "intern", "contract", "jami",
-            "o'rtacha", "ortacha", "eng", "ko'p", "kop", "kam", "soni", "hisoboti"
+            "o'rtacha", "ortacha", "eng", "ko'p", "kop", "kam", "soni", "hisoboti",
+            # Common pronouns, conjunctions, context and system words
+            "biz", "bizlar", "bizning", "siz", "sizlar", "sizning", "men", "mening", "ular", "ularning",
+            "uchun", "bilan", "va", "ham", "ammo", "lekin", "boshqa", "barcha", "hamma", "har", "bir",
+            "dars", "darsi", "darsida", "darsidamiz", "o'quvchi", "oquvchi", "o'quvchilar", "o'quvchilarga",
+            "oquvchilarga", "talaba", "talabalar", "sinf", "maktab", "misol", "namuna", "tizim", "tizimning",
+            "baza", "bazadan", "bazada", "jadval", "jadvali", "jadvalidan", "jadvallar", "jadvallarni",
+            "yozuv", "kod", "so'rov", "savol", "javob", "test", "sinov", "kiberxavfsizlik", "cybersecurity",
+            "olib", "olish", "yoz", "ko'r", "ishlat", "tekshir", "bajar"
         }
         tokens = [w for w in re.split(r"[^\w']+", question) if w]
         candidate_names = [w for w in tokens if w.lower() not in stopwords and not w.isdigit()]
@@ -123,7 +134,11 @@ class SchemaResolver:
             if len(candidate_names) >= 2:
                 entities["last_name"] = candidate_names[1]
 
-        elif len(candidate_names) == 2 and not any(kw in q_lower for kw in ("nechta", "qancha", "har bir", "jami")):
+        elif (
+            len(candidate_names) == 2
+            and all(w[0].isupper() for w in candidate_names)
+            and not any(kw in q_lower for kw in ("nechta", "qancha", "har bir", "jami", "bo'lim", "oylik", "maosh"))
+        ):
             resolved_plan["intent"] = "employee_details"
             entities["first_name"] = candidate_names[0]
             entities["last_name"] = candidate_names[1]

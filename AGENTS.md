@@ -35,9 +35,11 @@ The implementation MUST use the following stack unless the project owner explici
    - The system utilizes a single role: `viewer`.
    - The `viewer` role is granted full read-only query capabilities across all application domains.
 
-6. **Prompt Injection & Tag Injection Defenses:**
+6. **Prompt Injection, Tag Injection & System Catalog Defenses:**
    - Pseudo-XML tags like `<USER>`, `<USER_QUESTION>`, `<SCHEMA>`, `<SYSTEM>` MUST NOT be used to wrap untrusted inputs.
-   - Inputs MUST be defended against prompt injection, jailbreaks (`DAN mode`, instruction overrides), tag injection, and stacked SQL injection attacks.
+   - Any XML/HTML tags in user input (`<tag ...>`, `</tag>`) MUST be rejected.
+   - Inputs MUST be defended against prompt injection and jailbreaks across multiple languages (Uzbek, Russian, English) and against de-obfuscated/leetspeak bypasses (`i.g.n.o.r.e`).
+   - Inquiries targeting system catalogs (`pg_shadow`, `pg_authid`, `information_schema`, `pg_catalog`) and SQL injection signatures (`' OR '1'='1`, `UNION SELECT`) MUST be rejected at input validation.
 
 7. **PostgreSQL Read-Only User & Transaction Security:**
    - The application connects to PostgreSQL using a read-only database user (`inno_readonly`).

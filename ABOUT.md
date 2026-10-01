@@ -124,8 +124,10 @@ Browser / Static Frontend (Session ID: sess_...)
 
 ## 5. Security & Prompt Injection Defenses
 
-1. **Anti-Tag Injection:** Rejects inputs with `<USER>`, `<SYSTEM>`, `<PROMPT>` tags.
-2. **Anti-Jailbreak Filter:** Detects and terminates prompts containing `Ignore previous instructions`, `DAN mode`, `act as unrestricted`, `reveal system prompt`.
-3. **Anti-Stacked SQL:** Blocks `; --`, `; DROP`, `; DELETE` patterns.
-4. **AST Single-Statement Select:** sqlglot guarantees that only 1 statement exists and that it is an AST `exp.Select`.
-5. **Database-Level Read-Only Guarantee:** The PostgreSQL user is `inno_readonly` and transactions are `readonly=True`. Even if an injection bypassed software filters, the PostgreSQL engine itself will reject any write.
+1. **Anti-Tag Injection:** Rejects inputs with any XML/HTML-like tags (`<tag ...>`, `</tag>`, `<security_override>`, etc.) using strict tag pattern inspection.
+2. **Multilingual Anti-Jailbreak Filter:** Detects and terminates jailbreaks in English, Uzbek, and Russian (e.g. `Ignore previous instructions`, `DAN mode`, `Avvalgi ko'rsatmalarni bekor qil`, `Игнорируй правила`, `reveal system prompt`).
+3. **De-obfuscation & Leetspeak Normalizer:** Strips separators (dots, dashes, underscores) between letters and collapses spaced characters before pattern evaluation to defeat bypass attempts like `i.g.n.o.r.e a.l.l r.u.l.e.s`.
+4. **System Catalog & Metadata Protection:** Blocks queries referencing PostgreSQL system catalogs or internal schemas (`pg_shadow`, `pg_authid`, `information_schema`, `pg_roles`, etc.).
+5. **Anti-Stacked SQL & SQLi Signature Filter:** Blocks `; --`, `; DROP`, `; DELETE`, `UNION SELECT`, `' OR '1'='1` patterns at the input boundary.
+6. **AST Single-Statement Select:** sqlglot guarantees that only 1 statement exists and that it is an AST `exp.Select` against an explicit whitelist of business tables.
+7. **Database-Level Read-Only Guarantee:** The PostgreSQL user is `inno_readonly` and transactions are `readonly=True`. Even if an injection bypassed software filters, the PostgreSQL engine itself will reject any write.
