@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inno Markaz — PostgreSQL Database AI Agent</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar / Schema explorer -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <span class="logo-icon">⚡</span>
+          <span class="logo-text">Inno Markaz</span>
+        </div>
+        <button class="icon-btn toggle-sidebar" id="closeSidebarBtn" title="Yopish">✕</button>
+      </div>
+
+      <div class="status-card">
+        <div class="status-indicator online" id="statusIndicator"></div>
+        <div class="status-info">
+          <div class="status-title" id="systemStatus">Tizim holati: Bog'langan</div>
+          <div class="status-sub" id="modelInfo">Model: Yuklanmoqda...</div>
+        </div>
+      </div>
+
+      <div class="role-selector-card">
+        <label for="userRoleSelect">Foydalanuvchi roli:</label>
+        <select id="userRoleSelect" class="form-select">
+          <option value="analyst" selected>Tahlilchi (Analyst)</option>
+          <option value="viewer">Kuzatuvchi (Viewer)</option>
+          <option value="hr_admin">HR Administrator</option>
+          <option value="superadmin">Super Admin</option>
+        </select>
+        <small class="role-hint">Rol ma'lumotlar xavfsizligi siyosatini belgilaydi.</small>
+      </div>
+
+      <div class="schema-browser">
+        <h3>Jadvallar Ro'yxati</h3>
+        <ul class="table-list" id="tableList">
+          <li class="table-item active" data-table="departments">departments</li>
+          <li class="table-item" data-table="specialties">specialties</li>
+          <li class="table-item" data-table="positions">positions</li>
+          <li class="table-item" data-table="employees">employees</li>
+          <li class="table-item" data-table="employee_contacts">employee_contacts</li>
+          <li class="table-item" data-table="employee_education">employee_education</li>
+        </ul>
+      </div>
+
+      <div class="table-details-panel" id="tableDetails">
+        <h4 id="selectedTableName">departments</h4>
+        <div class="columns-list" id="columnsList">
+          <!-- Filled dynamically -->
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Chat Workspace -->
+    <main class="main-content">
+      <header class="main-header">
+        <button class="icon-btn" id="openSidebarBtn" title="Jadvallarni ko'rish">☰ Jadvallar</button>
+        <div class="header-titles">
+          <h1>PostgreSQL Database AI Agent</h1>
+          <span class="badge">Deterministic MCP & LLM</span>
+        </div>
+        <div class="header-actions">
+          <button class="btn btn-secondary btn-sm" id="clearChatBtn">Tozalash</button>
+        </div>
+      </header>
+
+      <!-- Message History Container -->
+      <div class="chat-container" id="chatContainer">
+        <div class="welcome-banner">
+          <div class="welcome-icon">🏢</div>
+          <h2>Inno Markaz Ma'lumotlar Bazasiga Xush Kelibsiz!</h2>
+          <p>
+            Ushbu tizim PostgreSQL ma'lumotlar bazasi bilan tabiiy tilda xavfsiz muloqot qilish imkonini beradi.
+            Barcha so'rovlar MCP (Model Context Protocol), AST tekshiruvi, parametrizatsiya va natijalarni filtrlash
+            filtrlari orqali xavfsiz o'tadi.
+          </p>
+
+          <div class="chips-section">
+            <p class="chips-title">Tezkor savollar namunalari:</p>
+            <div class="chips-container" id="chipsContainer">
+              <button class="chip">Toshkentdagi faol xodimlar soni nechta?</button>
+              <button class="chip">Har bir bo'limda nechta xodim bor?</button>
+              <button class="chip">Eng ko'p xodimga ega 10 ta bo'lim qaysilar?</button>
+              <button class="chip">Senior darajadagi xodimlar kimlar?</button>
+              <button class="chip">Remote xodimlar soni nechta?</button>
+              <button class="chip">Har bir bo'limning o'rtacha maoshi qancha?</button>
+              <button class="chip">Eng ko'p tajribaga ega 10 ta xodim kim?</button>
+              <button class="chip">Qaysi mutaxassislikda eng ko'p xodim bor?</button>
+              <button class="chip">Har bir rahbarga nechta xodim biriktirilgan?</button>
+              <button class="chip">2023-yilda ishga kirgan xodimlar nechta?</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="messages-list" id="messagesList">
+          <!-- Chat messages rendered dynamically -->
+        </div>
+      </div>
+
+      <!-- Input Area -->
+      <footer class="input-area">
+        <form id="chatForm" class="chat-form">
+          <input
+            type="text"
+            id="questionInput"
+            class="question-input"
+            placeholder="O'zbek, rus yoki ingliz tilida savolingizni yozing..."
+            autocomplete="off"
+            required
+          />
+          <button type="submit" id="sendBtn" class="btn btn-primary">
+            <span>Yuborish</span>
+            <span class="send-icon">➤</span>
+          </button>
+        </form>
+        <div class="input-hint">
+          <span>Xavfsizlik: Read-only SELECT so'rovlar • DROP/DELETE avtomatik bloklanadi</span>
+        </div>
+      </footer>
+    </main>
+  </div>
+
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
