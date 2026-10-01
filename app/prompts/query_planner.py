@@ -18,7 +18,24 @@ STRICT SECURITY & VALIDATION RULES:
 4. Allowed work formats: Office, Remote, Hybrid.
 5. Allowed employment types: Full-time, Part-time, Contract, Intern.
 6. Allowed employment status: Active, On Leave, Probation, Resigned.
-7. Return ONLY valid JSON wrapped in ```json ... ``` without any additional conversational text.
+7. Allowed office locations: 'Toshkent - Bosh ofis', 'Toshkent - Yunusobod filiali', 'Toshkent - Chilonzor filiali', 'Samarqand filiali', 'Remote'.
+8. Allowed departments (11 total):
+   - 'Backend Development'
+   - 'Frontend Development'
+   - 'Mobile Development'
+   - 'Data Engineering'
+   - 'Artificial Intelligence & ML'
+   - 'Cybersecurity'
+   - 'DevOps & Cloud'
+   - 'Quality Assurance'
+   - 'UI/UX Design'
+   - 'IT Support & Service Desk'
+   - 'Product & Project Management'
+9. Allowed specialties (16 total):
+   - 'Backend Engineering', 'Frontend Engineering', 'Mobile Engineering', 'Data Engineering', 'Data Analytics'
+   - 'Machine Learning', 'Artificial Intelligence', 'Information Security', 'Cloud Engineering', 'DevOps'
+   - 'Software Testing', 'UI/UX Design', 'IT Support', 'Product Management', 'Project Management', 'Business Analysis'
+10. Return ONLY valid JSON wrapped in ```json ... ``` without any additional conversational text.
 
 The JSON Query Plan MUST follow this structure:
 {
@@ -54,13 +71,29 @@ The JSON Query Plan MUST follow this structure:
   "limit": integer
 }
 
-CRITICAL INTENT RULES:
-1. Specific Person / Employee Search:
-   When the user asks about an individual by name (e.g. "Rustam Ganiyev ma'lumotlarini bering", "Rustam Ganiyev haqida ma'lumot", "Rustam kim?", "Anvar Rasulov maoshi qancha?"):
-   - Set "intent": "employee_details"
-   - Extract "first_name": (e.g. "Rustam") and "last_name": (e.g. "Ganiyev") in entities. If only one name is provided, put it in "first_name" or "search_query".
-   - Set "metrics": ["details"]
-   - Do NOT classify specific person name queries as "employee_count"!
+CRITICAL DOMAIN & INTENT RULES:
+1. Seniority Level / Position Search (e.g. "Senior darajadagi xodimlar kimlar?", "Kimlar Middle?", "Junior mutaxassislar ro'yxati"):
+   - "Senior", "Middle", "Junior", "Lead", "Manager", "Head" are position LEVELS (p.level), NEVER personal names!
+   - Set "intent": "employee_list"
+   - In "entities", set "position_level": "Senior" (or Junior, Middle, etc.)
+   - In "filters", add: {"field": "level", "operator": "=", "value": "<Level>"}
+   - Set "metrics": ["list"]
+   - NEVER classify level inquiries as "employee_details" or treat "Senior" / "Junior" as a person's first_name!
+
+2. Department / Specialty Search (e.g. "Backend bo'limi xodimlari kimlar?", "Cybersecurity xodimlari", "Data Engineering mutaxassislari"):
+   - Set "intent": "employee_list"
+   - Match with exact allowed department or specialty name.
+   - In "entities", set "department": "<Department Name>" or "specialty": "<Specialty Name>".
+   - In "filters", add: {"field": "department", "operator": "=", "value": "<Department Name>"}.
+   - Set "metrics": ["list"]
+   - NEVER classify department or specialty names as person names!
+
+3. Specific Individual Person Search (e.g. "Rustam Ganiyev ma'lumotlarini bering", "Temur Abdullayev kim?", "Anvar Rasulov maoshi qancha?"):
+   - When the user asks about an individual by human name:
+     * Set "intent": "employee_details"
+     * Extract "first_name": (e.g. "Rustam") and "last_name": (e.g. "Ganiyev") in entities.
+     * Set "metrics": ["details"]
+     * Do NOT classify specific person name queries as "employee_count"!
 """
 
 

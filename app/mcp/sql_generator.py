@@ -171,11 +171,23 @@ class SQLGenerator:
         # 6. Employee List / Department + Position list (Section 20, 55)
         if intent == "employee_list" or "list" in metrics:
             where_clauses: list[str] = []
+            needs_spec_join = False
 
             # Check for position level filter
             level = entities.get("position_level")
             if level and level in ALLOWED_POSITION_LEVELS:
                 where_clauses.append(f"p.level = {add_param(level)}")
+
+            # Check for department filter
+            dept = entities.get("department")
+            if dept:
+                where_clauses.append(f"d.name = {add_param(dept)}")
+
+            # Check for specialty filter
+            spec = entities.get("specialty")
+            if spec:
+                needs_spec_join = True
+                where_clauses.append(f"s.name = {add_param(spec)}")
 
             # Check for work format
             format_val = entities.get("work_format")
@@ -196,14 +208,19 @@ class SQLGenerator:
             # Check filters list
             for flt in filters:
                 f_name = flt.get("field", "")
-                op = flt.get("operator", "=")
                 val = flt.get("value")
                 if f_name == "is_active":
                     where_clauses.append(f"e.is_active = {add_param(val)}")
                 elif f_name == "employment_status":
                     where_clauses.append(f"e.employment_status = {add_param(val)}")
+                elif f_name in ("department", "departments.name") and not dept:
+                    where_clauses.append(f"d.name = {add_param(val)}")
+                elif f_name in ("specialty", "specialties.name") and not spec:
+                    needs_spec_join = True
+                    where_clauses.append(f"s.name = {add_param(val)}")
 
             where_str = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+            spec_join_str = " LEFT JOIN specialties s ON s.specialty_id = e.specialty_id" if needs_spec_join else ""
 
             sql = (
                 "SELECT e.employee_id, e.first_name, e.last_name, "
@@ -211,7 +228,7 @@ class SQLGenerator:
                 "e.hire_date, e.work_format, e.office_location "
                 "FROM employees e "
                 "JOIN positions p ON p.position_id = e.position_id "
-                "JOIN departments d ON d.department_id = e.department_id"
+                f"JOIN departments d ON d.department_id = e.department_id{spec_join_str}"
                 f"{where_str} "
                 f"LIMIT {add_param(limit or 10)}"
             )
@@ -221,12 +238,25 @@ class SQLGenerator:
         where_clauses = []
         needs_position_join = False
         needs_dept_join = False
+        needs_spec_join = False
 
         # Level filter
         level = entities.get("position_level")
         if level and level in ALLOWED_POSITION_LEVELS:
             needs_position_join = True
             where_clauses.append(f"p.level = {add_param(level)}")
+
+        # Department filter
+        dept = entities.get("department")
+        if dept:
+            needs_dept_join = True
+            where_clauses.append(f"d.name = {add_param(dept)}")
+
+        # Specialty filter
+        spec = entities.get("specialty")
+        if spec:
+            needs_spec_join = True
+            where_clauses.append(f"s.name = {add_param(spec)}")
 
         # Work format filter
         format_val = entities.get("work_format")
@@ -252,12 +282,20 @@ class SQLGenerator:
                 where_clauses.append(f"e.is_active = {add_param(val)}")
             elif f_name == "employment_status":
                 where_clauses.append(f"e.employment_status = {add_param(val)}")
+            elif f_name in ("department", "departments.name") and not dept:
+                needs_dept_join = True
+                where_clauses.append(f"d.name = {add_param(val)}")
+            elif f_name in ("specialty", "specialties.name") and not spec:
+                needs_spec_join = True
+                where_clauses.append(f"s.name = {add_param(val)}")
 
         joins_str = ""
         if needs_position_join:
             joins_str += " JOIN positions p ON p.position_id = e.position_id"
         if needs_dept_join:
             joins_str += " JOIN departments d ON d.department_id = e.department_id"
+        if needs_spec_join:
+            joins_str += " JOIN specialties s ON s.specialty_id = e.specialty_id"
 
         where_str = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
 

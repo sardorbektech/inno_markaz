@@ -72,6 +72,50 @@ ALLOWED_EDUCATION_TYPES: tuple[str, ...] = (
     "Bootcamp",
 )
 
+# Authoritative Allowed Departments (from innovatsiyalar_markazi.sql)
+ALLOWED_DEPARTMENTS: tuple[str, ...] = (
+    "Backend Development",
+    "Frontend Development",
+    "Mobile Development",
+    "Data Engineering",
+    "Artificial Intelligence & ML",
+    "Cybersecurity",
+    "DevOps & Cloud",
+    "Quality Assurance",
+    "UI/UX Design",
+    "IT Support & Service Desk",
+    "Product & Project Management",
+)
+
+# Authoritative Allowed Specialties (from innovatsiyalar_markazi.sql)
+ALLOWED_SPECIALTIES: tuple[str, ...] = (
+    "Backend Engineering",
+    "Frontend Engineering",
+    "Mobile Engineering",
+    "Data Engineering",
+    "Data Analytics",
+    "Machine Learning",
+    "Artificial Intelligence",
+    "Information Security",
+    "Cloud Engineering",
+    "DevOps",
+    "Software Testing",
+    "UI/UX Design",
+    "IT Support",
+    "Product Management",
+    "Project Management",
+    "Business Analysis",
+)
+
+# Authoritative Allowed Office Locations (from innovatsiyalar_markazi.sql)
+ALLOWED_OFFICE_LOCATIONS: tuple[str, ...] = (
+    "Toshkent - Bosh ofis",
+    "Toshkent - Yunusobod filiali",
+    "Toshkent - Chilonzor filiali",
+    "Samarqand filiali",
+    "Remote",
+)
+
 # Authoritative Allowed Tables (AGENTS.md Section 26)
 ALLOWED_TABLES: tuple[str, ...] = (
     "departments",
@@ -227,4 +271,18 @@ def get_compact_schema_context(include_sensitive: bool = False) -> dict[str, dic
             "columns": cols,
             "foreign_keys": tbl_info.foreign_keys,
         }
+
+    # Authoritative allowed domain values reference for LLM
+    context["_allowed_domain_values"] = {
+        "departments": list(ALLOWED_DEPARTMENTS),
+        "specialties": list(ALLOWED_SPECIALTIES),
+        "position_levels": list(ALLOWED_POSITION_LEVELS),
+        "employment_types": list(ALLOWED_EMPLOYMENT_TYPES),
+        "employment_statuses": list(ALLOWED_EMPLOYMENT_STATUSES),
+        "work_formats": list(ALLOWED_WORK_FORMATS),
+        "office_locations": list(ALLOWED_OFFICE_LOCATIONS),
+        "contact_types": list(ALLOWED_CONTACT_TYPES),
+        "education_types": list(ALLOWED_EDUCATION_TYPES),
+    }
+
     return context
