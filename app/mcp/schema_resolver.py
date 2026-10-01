@@ -105,10 +105,11 @@ class SchemaResolver:
             "bering", "ayt", "ayting", "toping", "ko'rsating", "korsating", "iltimos",
             "qancha", "nechta", "qaysi", "bor", "mavjud", "xodim", "inson", "odam", "ishchi",
             "xodimlar", "maosh", "oylik", "tajriba", "tajribasi", "bo'lim", "bolim", "bo'limlar",
-            "daraja", "darajasi", "katta", "kichik", "orta", "o'rta", "bosh", "ofis",
+            "daraja", "darajasi", "darajadagi", "darajasidagi", "lavozimidagi", "katta", "kichik", "orta", "o'rta", "bosh", "ofis",
             "faol", "tatilda", "resigned", "remote", "hybrid", "office", "junior", "middle", "senior",
             "lead", "manager", "head", "full", "time", "part", "intern", "contract", "jami",
             "o'rtacha", "ortacha", "eng", "ko'p", "kop", "kam", "soni", "hisoboti",
+            "kim", "kimlar", "u", "haqida", "ma'lumot", "ma'lumotlarini", "malumot", "malumotlarini",
             # Common pronouns, conjunctions, context and system words
             "biz", "bizlar", "bizning", "siz", "sizlar", "sizning", "men", "mening", "ular", "ularning",
             "uchun", "bilan", "va", "ham", "ammo", "lekin", "boshqa", "barcha", "hamma", "har", "bir",
