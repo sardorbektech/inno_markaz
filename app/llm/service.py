@@ -145,7 +145,7 @@ class LLMService:
                 LLMMessage(role="user", content=prompt),
             ],
             temperature=0.1,
-            max_tokens=768,
+            max_tokens=1536,
         )
 
         answer = ""
@@ -157,56 +157,95 @@ class LLMService:
 
         # Deterministic grounded fallback in beautiful Markdown if LLM produces empty response
         if not answer:
+            intent = query_plan.get("intent", "")
+
             if row_count == 0 or len(sanitized_results) == 0:
                 answer = "Ma'lumotlar bazasida ushbu so'rov bo'yicha hech qanday ma'lumot topilmadi."
-            elif row_count == 1 and "employee_count" in sanitized_results[0]:
+
+            # 1. Salary Analytics Priority (Average, Min, Max salary across departments)
+            elif any("average_salary" in r for r in sanitized_results) or intent == "salary_analytics":
+                table_rows = [
+                    f"| {r.get('department', '-')} | **{float(r.get('average_salary', 0)):,.2f} so'm** | {float(r.get('min_salary', 0)):,.2f} so'm | {float(r.get('max_salary', 0)):,.2f} so'm | {r.get('employee_count', '-')} |"
+                    for r in sanitized_results[:25]
+                ]
+                answer = (
+                    "### Bo'limlar bo'yicha o'rtacha maosh ko'rsatkichlari\n\n"
+                    "| Bo'lim | O'rtacha maosh | Min maosh | Max maosh | Xodimlar soni |\n"
+                    "|:---|:---|:---|:---|:---|\n" + "\n".join(table_rows)
+                )
+
+            # 2. Single Count
+            elif row_count == 1 and "employee_count" in sanitized_results[0] and len(sanitized_results[0]) == 1:
                 count_val = sanitized_results[0]["employee_count"]
                 answer = f"So'rov natijasiga ko'ra, xodimlar soni jami **{count_val} nafar**."
-            elif row_count == 1 and "total" in sanitized_results[0]:
+
+            elif row_count == 1 and "total" in sanitized_results[0] and len(sanitized_results[0]) == 1:
                 count_val = sanitized_results[0]["total"]
                 answer = f"So'rov bo'yicha jami: **{count_val} nafar**."
+
+            # 3. Department Employee Counts (pure counts)
             elif any("department" in r and "employee_count" in r for r in sanitized_results):
-                table_rows = [f"| {r.get('department')} | **{r.get('employee_count')}** |" for r in sanitized_results[:15]]
+                table_rows = [f"| {r.get('department')} | **{r.get('employee_count')}** |" for r in sanitized_results[:25]]
                 answer = (
                     "### Bo'limlar bo'yicha xodimlar soni\n\n"
                     "| Bo'lim | Xodimlar soni |\n"
                     "|:---|:---|\n" + "\n".join(table_rows)
                 )
-            elif any("average_salary" in r for r in sanitized_results):
-                table_rows = [
-                    f"| {r.get('department')} | {float(r.get('average_salary', 0)):,.2f} so'm | {float(r.get('min_salary', 0)):,.2f} so'm | {float(r.get('max_salary', 0)):,.2f} so'm |"
-                    for r in sanitized_results[:15]
-                ]
-                answer = (
-                    "### Bo'limlar bo'yicha o'rtacha maosh ko'rsatkichlari\n\n"
-                    "| Bo'lim | O'rtacha maosh | Min maosh | Max maosh |\n"
-                    "|:---|:---|:---|:---|\n" + "\n".join(table_rows)
-                )
+
+            # 4. Specialty Employee Counts
             elif any("specialty" in r and "employee_count" in r for r in sanitized_results):
                 top_s = sanitized_results[0]
-                table_rows = [f"| {r.get('specialty')} | **{r.get('employee_count')}** |" for r in sanitized_results[:15]]
+                table_rows = [f"| {r.get('specialty')} | **{r.get('employee_count')}** |" for r in sanitized_results[:25]]
                 answer = (
                     f"Eng ko'p xodimga ega mutaxassislik: **{top_s.get('specialty')}** ({top_s.get('employee_count')} nafar).\n\n"
                     "| Mutaxassislik | Xodimlar soni |\n"
                     "|:---|:---|\n" + "\n".join(table_rows)
                 )
+
+            # 5. Manager Direct Reports
             elif any("direct_report_count" in r for r in sanitized_results):
-                table_rows = [f"| {r.get('first_name')} {r.get('last_name')} | **{r.get('direct_report_count')}** |" for r in sanitized_results[:15]]
+                table_rows = [f"| {r.get('first_name')} {r.get('last_name')} | **{r.get('direct_report_count')}** |" for r in sanitized_results[:25]]
                 answer = (
                     "### Rahbarlar va ularga biriktirilgan xodimlar\n\n"
                     "| Rahbar | Biriktirilgan xodimlar |\n"
                     "|:---|:---|\n" + "\n".join(table_rows)
                 )
+
+            # 6. Detailed Employee List
             elif any("first_name" in r and "last_name" in r for r in sanitized_results):
-                table_rows = [
-                    f"| {r.get('first_name')} {r.get('last_name')} | {r.get('position', '-')} | {r.get('department', '-')} | {r.get('experience_years', '-')} |"
-                    for r in sanitized_results[:15]
+                has_sal = any("salary" in r for r in sanitized_results)
+                if has_sal:
+                    table_rows = [
+                        f"| {r.get('first_name')} {r.get('last_name')} | {r.get('position', '-')} | {r.get('department', '-')} | {float(r.get('salary', 0)):,.2f} so'm |"
+                        for r in sanitized_results[:25]
+                    ]
+                    answer = (
+                        "### Xodimlar ro'yxati va maoshlari\n\n"
+                        "| Ism, Familiya | Lavozim | Bo'lim | Maosh |\n"
+                        "|:---|:---|:---|:---|\n" + "\n".join(table_rows)
+                    )
+                else:
+                    table_rows = [
+                        f"| {r.get('first_name')} {r.get('last_name')} | {r.get('position', '-')} | {r.get('department', '-')} | {r.get('experience_years', '-')} |"
+                        for r in sanitized_results[:25]
+                    ]
+                    answer = (
+                        "### Xodimlar ro'yxati\n\n"
+                        "| Ism, Familiya | Lavozim | Bo'lim | Tajriba (yil) |\n"
+                        "|:---|:---|:---|:---|\n" + "\n".join(table_rows)
+                    )
+
+            # 7. Generic Fallback Table for Any Other Multi-Column Data
+            elif len(sanitized_results) > 0:
+                cols = list(sanitized_results[0].keys())
+                header_line = "| " + " | ".join(c.replace("_", " ").capitalize() for c in cols) + " |"
+                sep_line = "| " + " | ".join(":---" for _ in cols) + " |"
+                data_lines = [
+                    "| " + " | ".join(str(r.get(c, "-")) for c in cols) + " |"
+                    for r in sanitized_results[:25]
                 ]
-                answer = (
-                    "### Xodimlar ro'yxati\n\n"
-                    "| Ism, Familiya | Lavozim | Bo'lim | Tajriba (yil) |\n"
-                    "|:---|:---|:---|:---|\n" + "\n".join(table_rows)
-                )
+                answer = f"### So'rov natijalari ({row_count} ta satr)\n\n{header_line}\n{sep_line}\n" + "\n".join(data_lines)
+
             else:
                 answer = f"So'rov muvaffaqiyatli bajarildi. Jami **{row_count} ta** yozuv topildi."
 
