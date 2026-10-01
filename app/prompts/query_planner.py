@@ -94,6 +94,19 @@ CRITICAL DOMAIN & INTENT RULES:
      * Extract "first_name": (e.g. "Rustam") and "last_name": (e.g. "Ganiyev") in entities.
      * Set "metrics": ["details"]
      * Do NOT classify specific person name queries as "employee_count"!
+
+4. Manager Analytics & Direct Reports (e.g. "Har bir rahbarga nechta xodim biriktirilgan?", "Qaysi rahbarga nechta xodim bo'ysunadi?", "Rahbarlar va ularning xodimlari soni"):
+   - Set "intent": "manager_analytics"
+   - Set "dimensions": ["manager"]
+   - Set "metrics": ["count"]
+   - Do NOT classify manager direct-report inquiries as generic "employee_count"!
+
+5. Office Location Queries (e.g. "Toshkentdagi xodimlar", "Toshkentdagi hamma hodimlar kerak", "Samarqanddagi xodimlar"):
+   - Set "intent": "employee_list"
+   - In "entities", set "office_location": "<City>" (e.g. "Toshkent", "Samarqand")
+   - In "filters", add: {"field": "office_location", "operator": "ILIKE", "value": "%<City>%"}
+   - If the user asks for "hamma" or "barcha" or "all", set "limit": 500
+   - Do NOT add department or specialty filters unless a department or specialty is explicitly mentioned in the question!
 """
 
 

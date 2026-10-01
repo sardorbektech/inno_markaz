@@ -149,8 +149,12 @@ class SchemaResolver:
         # 0. Intent Refinement & Safe Defaults
         current_intent = resolved_plan.get("intent") or "unknown"
 
-        if current_intent in ("unknown", ""):
-            if "rahbar" in q_lower or "rahbarga" in q_lower:
+        # Check if question asks about managers and their direct reports
+        is_manager_query = bool(re.search(r"\b(rahbar|rahbarga|rahbarlar|rahbarda|menejer|manager)\b", q_lower))
+        if is_manager_query and any(w in q_lower for w in ("nechta", "soni", "biriktirilgan", "qo'l ostida", "bo'ysunuvchi", "har bir")):
+            resolved_plan["intent"] = "manager_analytics"
+        elif current_intent in ("unknown", ""):
+            if is_manager_query:
                 resolved_plan["intent"] = "manager_analytics"
             elif "mutaxassislik" in q_lower:
                 resolved_plan["intent"] = "specialty_analytics"
@@ -196,17 +200,17 @@ class SchemaResolver:
                     filters.append({"field": "level", "operator": "=", "value": level_val})
                 break
 
-        # 2. Resolve Department
+        # 2. Resolve Department (strictly word boundaries to avoid matching substrings like 'ml' inside 'hodimlar')
         for term, dept_val in DEPARTMENT_MAPPINGS.items():
-            if term in q_lower:
+            if re.search(rf"\b{re.escape(term)}\b", q_lower):
                 entities["department"] = dept_val
                 if not any(f.get("field") in ("department", "departments.name", "name") for f in filters):
                     filters.append({"field": "department", "operator": "=", "value": dept_val})
                 break
 
-        # 3. Resolve Specialty
+        # 3. Resolve Specialty (strictly word boundaries)
         for term, spec_val in SPECIALTY_MAPPINGS.items():
-            if term in q_lower:
+            if re.search(rf"\b{re.escape(term)}\b", q_lower):
                 entities["specialty"] = spec_val
                 if not any(f.get("field") in ("specialty", "specialties.name") for f in filters):
                     filters.append({"field": "specialty", "operator": "=", "value": spec_val})
@@ -252,10 +256,12 @@ class SchemaResolver:
                     filters.append({"field": "office_location", "operator": "ILIKE", "value": f"%{loc.capitalize()}%"})
                 break
 
-        # 9. Top N Limit Detection
+        # 9. Top N Limit Detection / All Rows
         limit_match = re.search(r"\b(\d+)\s*ta\b", q_lower)
         if limit_match:
             resolved_plan["limit"] = int(limit_match.group(1))
+        elif any(w in q_lower for w in ("hamma", "barcha", "to'liq", "all")):
+            resolved_plan["limit"] = 500
 
         # 10. Experience Sort Directive
         if ("tajriba" in q_lower or "tajribasi" in q_lower or "tajribaga ega" in q_lower) and resolved_plan.get("intent") == "employee_list":

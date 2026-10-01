@@ -116,13 +116,16 @@ class SQLGenerator:
             return sql, params
 
         # 2. Manager Analytics (Section 22)
-        if intent == "manager_analytics":
+        if intent == "manager_analytics" or "manager" in plan.get("dimensions", []):
             sql = (
                 "SELECT m.employee_id, m.first_name, m.last_name, "
+                "p.name AS position, d.name AS department, "
                 "COUNT(e.employee_id) AS direct_report_count "
                 "FROM employees m "
                 "JOIN employees e ON e.manager_employee_id = m.employee_id "
-                "GROUP BY m.employee_id, m.first_name, m.last_name "
+                "JOIN positions p ON p.position_id = m.position_id "
+                "JOIN departments d ON d.department_id = m.department_id "
+                "GROUP BY m.employee_id, m.first_name, m.last_name, p.name, d.name "
                 "ORDER BY direct_report_count DESC"
             )
             if limit:
