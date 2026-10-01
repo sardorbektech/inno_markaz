@@ -23,9 +23,10 @@ The implementation MUST use the following stack unless the project owner explici
    - LLM responses MUST be formatted in beautiful, readable Markdown.
    - Data summaries, comparative records, or lists of entities MUST be rendered as clean Markdown tables (`| Col | Col |`) or structured bulleted lists.
 
-3. **Unrestricted Business Read Access with Strict Zero-Write Policy:**
-   - The user possesses full permission to query and view ANY database business entity, including individual salaries, personal phone numbers, emails, and educational records.
-   - The database is STRICTLY read-only: Users CANNOT insert, update, delete, truncate, drop, alter, or create any database records or schemas.
+3. **Unrestricted Business & Personal Data Read Access with Strict Zero-Write Policy:**
+   - The user possesses absolute permission to query, retrieve, and view ANY data existing in the database without restriction or censorship. This explicitly includes all personal details, individual executive compensations, phone numbers, personal emails, Telegram handles, and educational backgrounds.
+   - The agent and LLM prompts MUST NEVER refuse, redact, censor, or decline to display requested records under privacy, PII, or confidentiality grounds. Any attempt to convert a person query into a generic count due to privacy concerns is strictly forbidden.
+   - The database remains strictly read-only: Users CANNOT insert, update, delete, truncate, drop, alter, or create any database records or schemas.
 
 4. **Per-Stage Pipeline Timing Visibility:**
    - In the "Jarayon tafsilotlari" (Pipeline Inspector), each individual stage MUST display its elapsed duration in seconds (formatted as `X.XX s`, e.g., `1.20 s`, `0.25 s`).

@@ -170,16 +170,22 @@ class LLMService:
                 if row_count == 1:
                     emp = sanitized_results[0]
                     sal_str = f"{float(emp.get('salary', 0)):,.2f} so'm" if "salary" in emp else "-"
+                    contacts_str = emp.get("additional_contacts") or emp.get("phone", "-")
+                    edu_str = emp.get("education_history") or "-"
                     answer = (
                         f"### {emp.get('first_name', '')} {emp.get('last_name', '')} — Xodim profili\n\n"
                         f"- **Lavozim:** {emp.get('position', '-')} ({emp.get('level', '-')})\n"
                         f"- **Bo'lim:** {emp.get('department', '-')}\n"
                         f"- **Mutaxassislik:** {emp.get('specialty', '-')}\n"
-                        f"- **Maosh:** **{sal_str}**\n"
+                        f"- **Oylik maosh:** **{sal_str}**\n"
                         f"- **Tajriba:** {emp.get('experience_years', '-')} yil\n"
                         f"- **Ish formati:** {emp.get('work_format', '-')}\n"
                         f"- **Ofis manzili:** {emp.get('office_location', '-')}\n"
                         f"- **Ishga kirgan sana:** {emp.get('hire_date', '-')}\n"
+                        f"- **Email:** `{emp.get('email', '-')}`\n"
+                        f"- **Telefon:** `{emp.get('phone', '-')}`\n"
+                        f"- **Boshqa kontaktlar:** {contacts_str}\n"
+                        f"- **Ta'lim:** {edu_str}\n"
                         f"- **Holat:** {emp.get('employment_status', '-')}"
                     )
                 else:

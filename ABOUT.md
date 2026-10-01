@@ -5,7 +5,7 @@
 **Inno Markaz** is an enterprise AI agent system that provides a secure, natural-language interface to a PostgreSQL database. It enables users operating under a unified **`viewer` (read-only)** role to query workforce analytics, organizational structure, employee distribution, individual salaries, and contact details in Uzbek, Russian, or English.
 
 ### Foundational Principles:
-1. **Unrestricted Business Read Access:** The user can query and view any business entity, including individual salaries, personal phone numbers, emails, and educational records.
+1. **Unrestricted Business & Personal Data Read Access:** The user can query and view ANY data existing in the database without restriction or censorship, including individual salaries, personal phone numbers, emails, telegram handles, and educational records. The system never refuses or redacts records under PII or confidentiality grounds.
 2. **Strict Zero-Write Policy:** The database is completely protected against modifications. Users cannot insert, update, delete, truncate, drop, alter, or create any database records or schemas.
 3. **Session Conversation Memory:** Retains the last 10 messages (user inquiries and assistant responses) per session for seamless multi-turn conversations.
 4. **Beautiful Markdown Formatting:** Analytical responses are structured using polished Markdown (bold highlights, summary tables, and clear lists).

@@ -59,6 +59,20 @@ def test_sql_generator_employee_details_query():
     assert "%Ganiyev%" in params
 
 
+def test_schema_resolver_temur_abdullayev_kim():
+    """Verify schema resolver resolves 'Temur Abdullayev kim?' to employee_details even with fallback plan."""
+    question = "Temur Abdullayev kim?"
+    plan = {
+        "intent": "employee_count",
+        "entities": {},
+        "metrics": ["count"],
+    }
+    resolved = schema_resolver.resolve_plan(question, plan)
+    assert resolved["intent"] == "employee_details"
+    assert resolved["entities"]["first_name"] == "Temur"
+    assert resolved["entities"]["last_name"] == "Abdullayev"
+
+
 def test_authorization_viewer_employee_details():
     """Verify viewer role has permission to access employee details."""
     assert authorization_manager.check_query_permission("employee_details", user_role="viewer") is True
