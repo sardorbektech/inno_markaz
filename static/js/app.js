@@ -292,12 +292,24 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/'/g, '&#039;');
   }
 
+  // Configure marked if available
+  if (typeof marked !== 'undefined' && marked.setOptions) {
+    marked.setOptions({
+      gfm: true,
+      breaks: true,
+    });
+  }
+
   // Beautiful Markdown rendering (using marked if available, fallback with table support)
   function renderMarkdown(text) {
     if (!text) return '';
     if (typeof marked !== 'undefined' && marked.parse) {
       try {
-        return marked.parse(text);
+        let rawHtml = marked.parse(text);
+        // Wrap <table> with table-responsive container for clean styling
+        rawHtml = rawHtml.replace(/<table(\b[^>]*)>/gi, '<div class="table-responsive"><table$1>');
+        rawHtml = rawHtml.replace(/<\/table>/gi, '</table></div>');
+        return rawHtml;
       } catch (e) {
         console.warn('Marked parse error, using fallback:', e);
       }
@@ -312,17 +324,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const rows = match.trim().split(/\r?\n/).map(r => r.trim()).filter(Boolean);
       if (rows.length < 2) return match;
 
-      let tableHtml = '<div class="data-table-container"><table class="data-table">';
+      let tableHtml = '<div class="table-responsive"><table>';
+      let inBody = false;
       rows.forEach((row, idx) => {
         if (row.includes('---')) return; // separator row
         const cells = row.split('|').map(c => c.trim()).filter((_, i, arr) => i > 0 && i < arr.length - 1);
         if (idx === 0) {
           tableHtml += '<thead><tr>' + cells.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>';
+          inBody = true;
         } else {
           tableHtml += '<tr>' + cells.map(c => `<td>${c}</td>`).join('') + '</tr>';
         }
       });
-      tableHtml += '</tbody></table></div>';
+      if (inBody) tableHtml += '</tbody>';
+      tableHtml += '</table></div>';
       return tableHtml;
     });
 

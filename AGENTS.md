@@ -42,6 +42,17 @@ The implementation MUST use the following stack unless the project owner explici
    - The application connects to PostgreSQL using a read-only database user (`inno_readonly`).
    - Every query MUST be executed inside an explicit `readonly=True` transaction with `statement_timeout`.
 
+8. **Person Search with Exact & Fuzzy Fallback (`employee_details`):**
+   - When querying a specific person by name (e.g., "Rustam Ganiyev ma'lumotlarini bering"):
+     * If the exact person exists, display their full profile (Name, Position, Level, Department, Specialty, Salary, Experience, Work format, Office, Hire date, Status, Contact).
+     * If the exact person does not exist, retrieve and display all similarly named employees matching either the first name or last name in a clean Markdown table.
+
+9. **Maximum Token Limit (`max_tokens = 5000`):**
+   - LLM generation requests MUST support a token budget of up to 5000 tokens (`max_tokens = 5000`) for comprehensive analytics and detailed reports.
+
+10. **Polished Table Styling & Column Separation:**
+    - The UI stylesheet MUST explicitly style Markdown tables with borders, clear padding, header contrast, alternating row backgrounds, and horizontal scrolling wrappers to prevent text overlap.
+
 ### Python 3.12.x Compatibility
 
 All backend code MUST be compatible with **Python 3.12.x** (such as `3.12.7` or `3.12.10`).

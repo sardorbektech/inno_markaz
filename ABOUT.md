@@ -12,6 +12,9 @@
 5. **Prompt Injection & Tag Defense:** Untrusted input is never wrapped in pseudo-XML tags (`<USER>`, `<USER_QUESTION>`). Direct prompt injections, jailbreaks (`DAN mode`), and stacked SQL commands are actively intercepted and blocked.
 6. **PostgreSQL Read-Only User:** The application connects using a dedicated `inno_readonly` database user and executes within explicit `readonly=True` transactions.
 7. **Per-Stage Timing Visibility:** Every stage of the MCP pipeline records and displays its exact execution time in seconds (e.g. `0.25 s`, `1.20 s`).
+8. **Person Search with Exact & Fuzzy Fallback:** Queries for specific people (`employee_details`) display full profiles on exact match, or retrieve similarly named employees via `ILIKE` on partial/unmatched names.
+9. **Maximum Token Limit (5000 tokens):** Supported generation budget of up to 5000 tokens for comprehensive analytics.
+10. **Polished Table Styling:** Markdown tables render with clean borders, padded cells, alternating row backgrounds, and horizontal scroll support.
 
 ---
 

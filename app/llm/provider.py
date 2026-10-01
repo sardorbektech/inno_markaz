@@ -17,7 +17,7 @@ class LLMMessage:
 class LLMRequest:
     messages: list[LLMMessage]
     temperature: float = 0.0
-    max_tokens: int = 4096
+    max_tokens: int = 5000
     model: str | None = None
     extra_params: dict[str, Any] = field(default_factory=dict)
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 from typing import Any
+from app.config.settings import settings
 from app.llm.factory import create_llm_provider
 from app.llm.provider import LLMMessage, LLMProvider, LLMRequest
 from app.logging_config import log_stage, logger
@@ -145,22 +146,52 @@ class LLMService:
                 LLMMessage(role="user", content=prompt),
             ],
             temperature=0.1,
-            max_tokens=1536,
+            max_tokens=settings.LLM_MAX_TOKENS,
         )
 
         answer = ""
         try:
             resp = await self.provider.generate(req)
-            answer = resp.content.strip()
+            if resp and resp.content:
+                answer = resp.content.strip()
         except Exception as e:
             logger.warning(f"LLM answer generation failed: {e}")
 
         # Deterministic grounded fallback in beautiful Markdown if LLM produces empty response
         if not answer:
             intent = query_plan.get("intent", "")
+            entities = query_plan.get("entities", {}) or {}
 
             if row_count == 0 or len(sanitized_results) == 0:
                 answer = "Ma'lumotlar bazasida ushbu so'rov bo'yicha hech qanday ma'lumot topilmadi."
+
+            # 0. Specific Employee Details / Similar Names Priority
+            elif intent == "employee_details" or entities.get("first_name") or entities.get("last_name") or entities.get("search_query"):
+                if row_count == 1:
+                    emp = sanitized_results[0]
+                    sal_str = f"{float(emp.get('salary', 0)):,.2f} so'm" if "salary" in emp else "-"
+                    answer = (
+                        f"### {emp.get('first_name', '')} {emp.get('last_name', '')} — Xodim profili\n\n"
+                        f"- **Lavozim:** {emp.get('position', '-')} ({emp.get('level', '-')})\n"
+                        f"- **Bo'lim:** {emp.get('department', '-')}\n"
+                        f"- **Mutaxassislik:** {emp.get('specialty', '-')}\n"
+                        f"- **Maosh:** **{sal_str}**\n"
+                        f"- **Tajriba:** {emp.get('experience_years', '-')} yil\n"
+                        f"- **Ish formati:** {emp.get('work_format', '-')}\n"
+                        f"- **Ofis manzili:** {emp.get('office_location', '-')}\n"
+                        f"- **Ishga kirgan sana:** {emp.get('hire_date', '-')}\n"
+                        f"- **Holat:** {emp.get('employment_status', '-')}"
+                    )
+                else:
+                    table_rows = [
+                        f"| **{r.get('first_name')} {r.get('last_name')}** | {r.get('position', '-')} | {r.get('department', '-')} | {float(r.get('salary', 0)):,.2f} so'm | {r.get('employment_status', '-')} |"
+                        for r in sanitized_results[:25]
+                    ]
+                    answer = (
+                        "### So'rov bo'yicha topilgan xodimlar (o'xshash nomzodlar)\n\n"
+                        "| Ism, Familiya | Lavozim | Bo'lim | Maosh | Holat |\n"
+                        "|:---|:---|:---|:---|:---|\n" + "\n".join(table_rows)
+                    )
 
             # 1. Salary Analytics Priority (Average, Min, Max salary across departments)
             elif any("average_salary" in r for r in sanitized_results) or intent == "salary_analytics":

@@ -24,7 +24,7 @@ class OpenRouterConfig:
 
 @dataclass
 class GenerationConfig:
-    max_tokens: int = 1024
+    max_tokens: int = settings.LLM_MAX_TOKENS
     timeout_seconds: float = 120.0
 
 

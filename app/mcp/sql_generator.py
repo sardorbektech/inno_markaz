@@ -39,6 +39,65 @@ class SQLGenerator:
             params.append(val)
             return f"${len(params)}"
 
+        # 0. Specific Employee Details / Person Search (with exact and fuzzy similar name matching)
+        first_name = (entities.get("first_name") or "").strip()
+        last_name = (entities.get("last_name") or "").strip()
+        search_query = (entities.get("search_query") or "").strip()
+
+        if not first_name and not last_name and search_query:
+            tokens = search_query.split()
+            if len(tokens) >= 2:
+                first_name, last_name = tokens[0], tokens[1]
+            elif len(tokens) == 1:
+                first_name = tokens[0]
+
+        if intent == "employee_details" or first_name or last_name:
+            base_select = (
+                "SELECT e.employee_id, e.first_name, e.last_name, "
+                "p.name AS position, p.level, d.name AS department, "
+                "s.name AS specialty, e.salary, e.experience_years, "
+                "e.work_format, e.office_location, e.employment_status, "
+                "e.employment_type, e.hire_date, e.email, e.phone "
+                "FROM employees e "
+                "JOIN positions p ON p.position_id = e.position_id "
+                "JOIN departments d ON d.department_id = e.department_id "
+                "LEFT JOIN specialties s ON s.specialty_id = e.specialty_id"
+            )
+
+            if first_name and last_name:
+                p1 = add_param(f"%{first_name}%")
+                p2 = add_param(f"%{last_name}%")
+                sql = (
+                    f"{base_select} "
+                    f"WHERE (e.first_name ILIKE {p1} AND e.last_name ILIKE {p2}) "
+                    f"   OR (e.first_name ILIKE {p2} AND e.last_name ILIKE {p1}) "
+                    f"   OR e.first_name ILIKE {p1} "
+                    f"   OR e.last_name ILIKE {p2} "
+                    f"   OR e.first_name ILIKE {p2} "
+                    f"   OR e.last_name ILIKE {p1} "
+                    "ORDER BY "
+                    f"   CASE "
+                    f"     WHEN (e.first_name ILIKE {p1} AND e.last_name ILIKE {p2}) OR (e.first_name ILIKE {p2} AND e.last_name ILIKE {p1}) THEN 1 "
+                    f"     WHEN e.first_name ILIKE {p1} OR e.last_name ILIKE {p2} THEN 2 "
+                    f"     ELSE 3 "
+                    f"   END, "
+                    "   e.employee_id ASC "
+                    f"LIMIT {add_param(limit or 10)}"
+                )
+                return sql, params
+            elif first_name or last_name:
+                target_name = first_name or last_name
+                p1 = add_param(f"%{target_name}%")
+                sql = (
+                    f"{base_select} "
+                    f"WHERE e.first_name ILIKE {p1} OR e.last_name ILIKE {p1} "
+                    "ORDER BY "
+                    f"   CASE WHEN e.first_name ILIKE {p1} THEN 1 ELSE 2 END, "
+                    "   e.employee_id ASC "
+                    f"LIMIT {add_param(limit or 10)}"
+                )
+                return sql, params
+
         # 1. Salary Analytics (Section 23, 56)
         if intent == "salary_analytics" or any("salary" in m for m in metrics):
             sql = (

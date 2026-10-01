@@ -93,18 +93,34 @@ class SchemaResolver:
         sort_directives = list(resolved_plan.get("sort", []) or [])
 
         # 0. Intent refinement based on domain keywords
-        if "rahbar" in q_lower or "rahbarga" in q_lower:
+        if resolved_plan.get("intent") == "employee_details" or entities.get("first_name") or entities.get("last_name") or entities.get("search_query"):
+            resolved_plan["intent"] = "employee_details"
+        elif "rahbar" in q_lower or "rahbarga" in q_lower:
             resolved_plan["intent"] = "manager_analytics"
         elif "mutaxassislik" in q_lower:
             resolved_plan["intent"] = "specialty_analytics"
         elif "maosh" in q_lower or "oylik" in q_lower or "salary" in q_lower:
-            resolved_plan["intent"] = "salary_analytics"
+            # If asking about a specific person's salary, keep employee_details
+            if entities.get("first_name") or entities.get("last_name"):
+                resolved_plan["intent"] = "employee_details"
+            else:
+                resolved_plan["intent"] = "salary_analytics"
         elif "har bir bo'lim" in q_lower or "bo'limda nechta" in q_lower or "bo'limlar" in q_lower:
             resolved_plan["intent"] = "department_analytics"
         elif "tajriba" in q_lower or "tajribasi" in q_lower or "tajribaga ega" in q_lower:
             resolved_plan["intent"] = "employee_list"
             if not any(s.get("field") == "experience_years" for s in sort_directives):
                 sort_directives.append({"field": "experience_years", "direction": "DESC"})
+        elif any(kw in q_lower for kw in ("haqida", "ma'lumotlarini", "malumotlarini", "kim u", "kim?")):
+            # Name inquiry fallback
+            cleaned_tokens = [w for w in re.split(r"[^\w']+", question) if w and w.lower() not in ("haqida", "ma'lumotlarini", "bering", "toping", "kim", "malumotlarini", "insonni", "xodimni", "iltimos")]
+            if len(cleaned_tokens) >= 2:
+                entities["first_name"] = cleaned_tokens[0]
+                entities["last_name"] = cleaned_tokens[1]
+                resolved_plan["intent"] = "employee_details"
+            elif len(cleaned_tokens) == 1:
+                entities["first_name"] = cleaned_tokens[0]
+                resolved_plan["intent"] = "employee_details"
 
         # Top N limit detection
         limit_match = re.search(r"\b(\d+)\s*ta\b", q_lower)

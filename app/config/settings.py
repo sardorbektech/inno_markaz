@@ -28,6 +28,7 @@ class Settings(BaseSettings):
 
     # LLM Settings
     LLM_PROVIDER: Literal["ollama", "openrouter"] = "openrouter"
+    LLM_MAX_TOKENS: int = 5000
     OLLAMA_BASE_URL: str = "http://127.0.0.1:11434"
     OLLAMA_MODEL: str = "gemma4:latest"
     OPENROUTER_API_KEY: str = ""

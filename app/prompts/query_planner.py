@@ -19,8 +19,11 @@ STRICT SECURITY & VALIDATION RULES:
 
 The JSON Query Plan MUST follow this structure:
 {
-  "intent": "employee_count" | "employee_list" | "department_analytics" | "salary_analytics" | "specialty_analytics" | "manager_analytics" | "education_analytics" | "unknown",
+  "intent": "employee_count" | "employee_list" | "employee_details" | "department_analytics" | "salary_analytics" | "specialty_analytics" | "manager_analytics" | "education_analytics" | "unknown",
   "entities": {
+    "first_name": string | null,
+    "last_name": string | null,
+    "search_query": string | null,
     "department": string | null,
     "specialty": string | null,
     "position_level": string | null,
@@ -30,12 +33,12 @@ The JSON Query Plan MUST follow this structure:
     "office_location": string | null,
     "year": integer | null
   },
-  "metrics": ["count" | "avg_salary" | "min_salary" | "max_salary" | "list"],
+  "metrics": ["count" | "avg_salary" | "min_salary" | "max_salary" | "list" | "details"],
   "dimensions": ["department" | "position" | "level" | "specialty" | "work_format" | "office_location" | "manager"],
   "filters": [
     {
       "field": string,
-      "operator": "=" | "!=" | ">" | ">=" | "<" | "<=" | "LIKE" | "IN",
+      "operator": "=" | "!=" | ">" | ">=" | "<" | "<=" | "LIKE" | "ILIKE" | "IN",
       "value": any
     }
   ],
@@ -47,6 +50,14 @@ The JSON Query Plan MUST follow this structure:
   ],
   "limit": integer
 }
+
+CRITICAL INTENT RULES:
+1. Specific Person / Employee Search:
+   When the user asks about an individual by name (e.g. "Rustam Ganiyev ma'lumotlarini bering", "Rustam Ganiyev haqida ma'lumot", "Rustam kim?", "Anvar Rasulov maoshi qancha?"):
+   - Set "intent": "employee_details"
+   - Extract "first_name": (e.g. "Rustam") and "last_name": (e.g. "Ganiyev") in entities. If only one name is provided, put it in "first_name" or "search_query".
+   - Set "metrics": ["details"]
+   - Do NOT classify specific person name queries as "employee_count"!
 """
 
 
